@@ -65,6 +65,11 @@ class PeerOptions implements PeerJSOption {
 	referrerPolicy?: ReferrerPolicy;
 	logFunction?: (logLevel: LogLevel, ...rest: any[]) => void;
 	serializers?: SerializerMapping;
+	/**
+	 * choose whether peerjs will be a websocket client or a socketio client
+	*/
+	clientType?:"websocket" | "socketio"
+
 }
 
 export { type PeerOptions };
@@ -233,6 +238,7 @@ export class Peer extends EventEmitterWithError<PeerErrorType, PeerEvents> {
 			config: util.defaultConfig,
 			referrerPolicy: "strict-origin-when-cross-origin",
 			serializers: {},
+			clientType:"websocket",
 			...options,
 		};
 		this._options = options;
@@ -305,6 +311,7 @@ export class Peer extends EventEmitterWithError<PeerErrorType, PeerEvents> {
 			this._options.port!,
 			this._options.path!,
 			this._options.key!,
+			this._options.clientType,
 			this._options.pingInterval,
 		);
 
