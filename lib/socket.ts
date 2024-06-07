@@ -144,7 +144,6 @@ export class Socket extends EventEmitter {
 
         logger.log("Socket open");
 
-        this._scheduleHeartbeat();
       });
 
 		}
