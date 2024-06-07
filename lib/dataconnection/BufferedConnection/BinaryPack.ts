@@ -29,10 +29,13 @@ export class BinaryPack extends BufferedConnection {
 	// Handles a DataChannel message.
 	protected override _handleDataMessage({ data }: { data: Uint8Array }): void {
 		const deserializedData = unpack(data);
-
 		// PeerJS specific message
+		// console.log(data)
+		// console.log(deserializedData)
 		const peerData = deserializedData["__peerData"];
 		if (peerData) {
+
+
 			if (peerData.type === "close") {
 				this.close();
 				return;
@@ -53,6 +56,7 @@ export class BinaryPack extends BufferedConnection {
 		total: number;
 		data: ArrayBuffer;
 	}): void {
+		console.log(data)
 		const id = data.__peerData;
 		const chunkInfo = this._chunkedData[id] || {
 			data: [],
@@ -88,6 +92,7 @@ export class BinaryPack extends BufferedConnection {
 
 		this._bufferedSend(blob);
 	}
+
 	private async _send_blob(blobPromise: Promise<ArrayBufferLike>) {
 		const blob = await blobPromise;
 		if (blob.byteLength > this.chunker.chunkedMTU) {

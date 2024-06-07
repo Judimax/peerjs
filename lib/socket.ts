@@ -143,7 +143,6 @@ export class Socket extends EventEmitter {
 		}
 
 		const message = JSON.stringify(data);
-
 		this._socket!.send(message);
 	}
 

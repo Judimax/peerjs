@@ -44,6 +44,7 @@ export abstract class BufferedConnection extends DataConnection {
 		}
 
 		try {
+			// console.log(msg)
 			this.dataChannel.send(msg);
 		} catch (e) {
 			logger.error(`DC#:${this.connectionId} Error when sending:`, e);
