@@ -14,7 +14,7 @@ export class Socket extends EventEmitter {
 	private _id?: string;
 	private _messagesQueue: Array<object> = [];
 	private _websocket?: WebSocket
-	private _socketio?:IOSocket
+	_socketio?:IOSocket
 	private _wsPingTimer?: any;
 	private readonly _baseWebSocketUrl: string;
 	private readonly _baseSocketioUrl: string
@@ -42,111 +42,127 @@ export class Socket extends EventEmitter {
 		this._clientType = clientType
 	}
 
-	start(id: string, token: string): void {
-		this._id = id;
+	async start(id: string, token: string) {
+		return new Promise<void>((resolve,reject)=>{
+			let isResolved = false;
+			if (this._clientType === "websocket") {
+				resolve();
+				this._id = id;
+			}
 
-		const wsUrl = `${this._baseWebSocketUrl}&id=${id}&token=${token}`;
-
-		if (!!this._websocket || !this._disconnected) {
-			return;
-		}
+			if (!!this._websocket || !this._disconnected || !!this._socketio) {
+				return;
+			}
 
 
-		if (this._clientType === "websocket") {
-      this._websocket = new WebSocket(wsUrl + "&version=" + version);
-    } else {
-      this._socketio = io(this._baseSocketioUrl,
-				{
-					query:{
-						...this._baseSocketioQueryParams,
-						id,token,version
+			if (this._clientType === "websocket") {
+				const wsUrl = `${this._baseWebSocketUrl}&id=${id}&token=${token}`;
+				this._websocket = new WebSocket(wsUrl + "&version=" + version);
+			} else {
+				this._socketio = io(this._baseSocketioUrl,
+					{
+						path:"/peerjs-socketio",
+						query:{
+							...this._baseSocketioQueryParams,
+							token,version
+						}
+
 					}
-				// DONEST MAKE SENSE TO HAVE HERE LEFT AS PRECAUTION
-				// { path:(this._path === "/" ? "'/socket.io'" : this._path) +"/peerjs"}
-				}
-			);
-    }
-		this._disconnected = false;
+				);
 
-		if (this._clientType === "websocket") {
-			this._websocket.onmessage = (event) => {
-				let data;
+			}
+			this._disconnected = false;
 
-				try {
-					data = JSON.parse(event.data);
-					logger.log("Server message received:", data);
-				} catch (e) {
-					logger.log("Invalid server message", event.data);
-					return;
-				}
+			if (this._clientType === "websocket") {
+				this._websocket.onmessage = (event) => {
+					let data;
+					try {
+						data = JSON.parse(event.data);
+						logger.log("Server message received:", data);
+					} catch (e) {
+						logger.log("Invalid server message", event.data);
+						return;
+					}
 
-				this.emit(SocketEventType.Message, data);
-			};
+					this.emit(SocketEventType.Message, data);
+				};
 
-			this._websocket.onclose = (event) => {
-				if (this._disconnected) {
-					return;
-				}
+				this._websocket.onclose = (event) => {
+					if (this._disconnected) {
+						return;
+					}
 
-				logger.log("Socket closed.", event);
+					logger.log("Socket closed.", event);
 
-				this._cleanup();
-				this._disconnected = true;
+					this._cleanup();
+					this._disconnected = true;
+					this.emit(SocketEventType.Disconnected);
+					if (!isResolved) {
+						reject('WebSocket connection closed');
+						isResolved = true;
+					}
+				};
 
-				this.emit(SocketEventType.Disconnected);
-			};
+				// Take care of the queue of connections if necessary and make sure Peer knows
+				// socket is open.
+				this._websocket.onopen = () => {
+					if (this._disconnected) {
+						return;
+					}
 
-			// Take care of the queue of connections if necessary and make sure Peer knows
-			// socket is open.
-			this._websocket.onopen = () => {
-				if (this._disconnected) {
-					return;
-				}
+					this._sendQueuedMessages();
+					logger.log("Socket open");
+					this._scheduleHeartbeat();
+					if (!isResolved) {
+						resolve();
+						isResolved = true;
+					}
+				};
+			}
+			else {
+				this._socketio.on("message", (data: any) => {
+					try {
+						logger.log("Server message received:", data);
+					} catch (e) {
+						logger.log("Invalid server message", data);
+						return;
+					}
 
-				this._sendQueuedMessages();
+					this.emit(SocketEventType.Message, data);
+				});
 
-				logger.log("Socket open");
+				this._socketio.on("disconnect", (reason: string) => {
+					if (this._disconnected) {
+						return;
+					}
 
-				this._scheduleHeartbeat();
-			};
-		}
-		else {
-      this._socketio.on("message", (data: any) => {
-        try {
-          logger.log("Server message received:", data);
-        } catch (e) {
-          logger.log("Invalid server message", data);
-          return;
-        }
+					logger.log("Socket closed.", reason);
+					this._cleanup();
+					this._disconnected = true;
+					this.emit(SocketEventType.Disconnected);
+					if (!isResolved) {
+						reject(reason);
+						isResolved = true;
+					}
+				});
 
-        this.emit(SocketEventType.Message, data);
-      });
+				this._socketio.on("connect", () => {
+					this._id = this._socketio.id
+					if (this._disconnected) {
+						return;
+					}
 
-      this._socketio.on("disconnect", (reason: string) => {
-        if (this._disconnected) {
-          return;
-        }
+					this._sendQueuedMessages();
 
-        logger.log("Socket closed.", reason);
+					logger.log("Socket open");
+					if (!isResolved) {
+						resolve();
+						isResolved = true;
+					}
+				});
 
-        this._cleanup();
-        this._disconnected = true;
-
-        this.emit(SocketEventType.Disconnected);
-      });
-
-      this._socketio.on("connect", () => {
-        if (this._disconnected) {
-          return;
-        }
-
-        this._sendQueuedMessages();
-
-        logger.log("Socket open");
-
-      });
-
-		}
+			}
+		});
 	}
 
 	private _scheduleHeartbeat(): void {

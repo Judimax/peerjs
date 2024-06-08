@@ -300,12 +300,18 @@ export class Peer extends EventEmitterWithError<PeerErrorType, PeerEvents> {
 		}
 
 		if (userId) {
-			this._initialize(userId);
+			this._initialize(userId).catch((error) => this._abort(PeerErrorType.ServerError, error));
 		} else {
-			this._api
+			if(this.options.clientType === "websocket"){
+				this._api
 				.retrieveId()
 				.then((id) => this._initialize(id))
 				.catch((error) => this._abort(PeerErrorType.ServerError, error));
+			}
+			else{
+				this._initialize().catch((error) => this._abort(PeerErrorType.ServerError, error));
+			}
+
 		}
 	}
 
@@ -352,11 +358,16 @@ export class Peer extends EventEmitterWithError<PeerErrorType, PeerEvents> {
 	}
 
 	/** Initialize a connection with the server. */
-	private _initialize(id: string): void {
-		this._id = id;
-		this.socket.start(id, this._options.token!);
-	}
+	private async _initialize(id?: string): Promise<void> {
+		if(this.options.clientType === "websocket"){
 
+			this._id = id;
+			await this.socket.start(id, this._options.token!);
+		} else{
+			await this.socket.start(id, this._options.token!);
+			this._id = this._socket._socketio.id
+		}
+	}
 	/** Handles messages from the server. */
 	private _handleMessage(message: ServerMessage): void {
 		const type = message.type;
@@ -717,14 +728,15 @@ export class Peer extends EventEmitterWithError<PeerErrorType, PeerEvents> {
 	 * Destroyed peers cannot be reconnected.
 	 * If the connection fails (as an example, if the peer's old ID is now taken),
 	 * the peer's existing connections will not close, but any associated errors events will fire.
+	 * should not be called often or at all with a socketio connection
 	 */
-	reconnect(): void {
+	async reconnect() {
 		if (this.disconnected && !this.destroyed) {
 			logger.log(
 				`Attempting reconnection to server with ID ${this._lastServerId}`,
 			);
 			this._disconnected = false;
-			this._initialize(this._lastServerId!);
+			await this._initialize(this._lastServerId!);
 		} else if (this.destroyed) {
 			throw new Error(
 				"This peer cannot reconnect to the server. It has already been destroyed.",
