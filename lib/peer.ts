@@ -299,6 +299,7 @@ export class Peer extends EventEmitterWithError<PeerErrorType, PeerEvents> {
 			return;
 		}
 
+		
 		if (userId) {
 			this._initialize(userId).catch((error) => this._abort(PeerErrorType.ServerError, error));
 		} else {
