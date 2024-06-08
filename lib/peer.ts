@@ -69,6 +69,10 @@ class PeerOptions implements PeerJSOption {
 	 * choose whether peerjs will be a websocket client or a socketio client
 	*/
 	clientType?:"websocket" | "socketio"
+	/**
+	 * whether to use peerjs own implemation or the standard it recommended to use the standard for cross platform
+	*/
+	msgpackType?:"standard" | "peerjs"
 
 }
 
@@ -239,6 +243,7 @@ export class Peer extends EventEmitterWithError<PeerErrorType, PeerEvents> {
 			referrerPolicy: "strict-origin-when-cross-origin",
 			serializers: {},
 			clientType:"websocket",
+			msgpackType:"peerjs",
 			...options,
 		};
 		this._options = options;

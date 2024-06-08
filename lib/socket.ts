@@ -165,11 +165,10 @@ export class Socket extends EventEmitter {
 
     if (this._clientType === "websocket") {///////////// add //////////
       this._websocket.send(JSON.stringify(message));
-    } else {
-      this._socketio.emit("message", message);
+			this._scheduleHeartbeat();
     }
 
-		this._scheduleHeartbeat();
+
 	}
 
 	/** Is the websocket currently open? */
@@ -217,12 +216,11 @@ export class Socket extends EventEmitter {
 		}
 
 		if (this._clientType === "websocket") {
-      this._websocket.send(JSON.stringify(data));
+			const message = JSON.stringify(data);
+			this._websocket.send(message);
     } else {
       this._socketio.emit("message", data);
     }
-		const message = JSON.stringify(data);
-		this._websocket!.send(message);
 	}
 
 	close(): void {
@@ -236,7 +234,7 @@ export class Socket extends EventEmitter {
 	}
 
 	private _cleanup(): void {
-		if (this._clientType =="websocket"){
+		if (this._clientType === "websocket"){
 			if (this._websocket) {
 				this._websocket.onopen =
 					this._websocket.onmessage =
