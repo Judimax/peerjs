@@ -59,9 +59,8 @@ export class Socket extends EventEmitter {
 				const wsUrl = `${this._baseWebSocketUrl}&id=${id}&token=${token}`;
 				this._websocket = new WebSocket(wsUrl + "&version=" + version);
 			} else {
-				this._socketio = io(this._baseSocketioUrl,
+				this._socketio = io(this._baseSocketioUrl+"/peerjs",
 					{
-						path:"/peerjs-socketio",
 						query:{
 							...this._baseSocketioQueryParams,
 							token,version
